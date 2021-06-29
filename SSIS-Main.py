@@ -438,7 +438,7 @@ def populateTreeView():
     treeView.delete(*treeView.get_children())
     conn = sqlite3.connect('students.db')
     cur = conn.cursor()
-    cur.execute("SELECT Students.ID_Number, Students.Name, Students.Age, Students.Gender, Students.Year_Level, Courses.Course_Name FROM Students JOIN Courses ON Students.Course_Code=Courses.Course_Code")
+    cur.execute("SELECT Students.ID_Number, Students.Name, Students.Age, Students.Gender, Students.Year_Level, Courses.Course_Name FROM Students JOIN Courses ON Students.Course_Code=Courses.Course_Code ORDER BY Students.ID_Number")
     fetch = cur.fetchall()
     for data in fetch:
         treeView.insert("", tk.END, values=data)
@@ -496,7 +496,7 @@ clearFilter.grid(row=0, column=2, padx=(5,20), sticky=EW)
 filterQuery.trace("w", lambda name, index, mode, track=filterQuery: filterID(filterEntry.get()))
 
 # Add Course to DB
-addCourse = ttk.Button(root, text='Add New Course', command=viewCourses)
+addCourse = ttk.Button(root, text='View Courses', command=viewCourses)
 addCourse.place(anchor=E, relx=0.95, rely=0.16, relwidth=0.13, relheight=0.05)
 
 treeViewContainer.place(anchor=N, relx=0.5, rely=0.2, relwidth=0.9, relheight=0.75)
