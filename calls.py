@@ -14,13 +14,13 @@ def databaseSetup():
             Year_Level INTEGER NOT NULL,
             Course_Code VARCHAR(5) NOT NULL,
             PRIMARY KEY(ID_Number)
+            FOREIGN KEY(Course_Code) REFERENCES Courses(Course_Code)
         );
     """)
     cur.execute("""
         CREATE TABLE IF NOT EXISTS "Courses"(
-            Course_Code VARCHAR(5) NOT NULL,
+            Course_Code VARCHAR(5) PRIMARY KEY NOT NULL,
             Course_Name VARCHAR(100) NOT NULL,
-            FOREIGN KEY(Course_Code) REFERENCES Students(Course_Code)
         );
     """)
     conn.close()
