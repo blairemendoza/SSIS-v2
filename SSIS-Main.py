@@ -25,6 +25,7 @@ root.resizable(True, True)
 
 # Global variable data from database
 idTracker = ''
+filterQuery = StringVar()
 
 # Title for main window
 titleApp = tk.Label(root, text='Student Information System', font=TITLE)
@@ -44,27 +45,25 @@ treeviewScrollbar.pack(fill='y', side='right')
 # treeview
 treeView = ttk.Treeview(treeViewFrame, yscrollcommand=treeviewScrollbar.set)
 treeView['columns'] = (
-    "ID_Number", "Name", "Age", "Gender", "Year_Level", "Course_Code")
+    "ID_Number", "Name", "Age", "Gender", "Year_Level", "Course_Name")
 treeView.column("#0", width=0, stretch=FALSE)
 treeView.column("ID_Number", anchor="center", width=100, stretch=FALSE)
-treeView.column("Name", anchor="w", width=250)
-treeView.column("Age", anchor="center", width=10)
-treeView.column("Gender", anchor="center", width=20)
-treeView.column("Year_Level", anchor="center", width=10)
-treeView.column("Course_Code", anchor="w", width=175)
+treeView.column("Name", anchor="w", width=350, stretch=FALSE)
+treeView.column("Age", anchor="center", width=60, stretch=FALSE)
+treeView.column("Gender", anchor="center", width=80, stretch=FALSE)
+treeView.column("Year_Level", anchor="center", width=60, stretch=FALSE)
+treeView.column("Course_Name", anchor="w", width=200)
 
 treeView.heading("ID_Number", text="ID Number", anchor="center")
 treeView.heading("Name", text="Name", anchor="w")
 treeView.heading("Age", text="Age", anchor="center")
 treeView.heading("Gender", text="Gender", anchor="center")
 treeView.heading("Year_Level", text="Year", anchor="center")
-treeView.heading("Course_Code", text="Course Code", anchor="w")
+treeView.heading("Course_Name", text="Course Name", anchor="w")
 
 treeView.place(anchor=W, relx=0, rely=0.5, relwidth=0.985, relheight=1)
 
 # MAIN FUNCTIONS
-#def onFocus():
-
 def addStudentWindow():
     newWindow = Toplevel(root)
     newWindow.title("Add New Student")
@@ -133,14 +132,20 @@ def addStudentWindow():
         cur = conn.cursor()
         cur.execute("SELECT ID_Number FROM Students WHERE ID_Number='{}'".format(idEntVal))
         output = cur.fetchone()
-        conn.close()
         
+        cur.execute("SELECT Course_Code FROM Courses WHERE Course_Code='{}'".format(crsEnt))
+        crsOutput = cur.fetchone()
+        conn.close()
+
         # checks fetchone output if None or existing
-        if output == None:
+        if output == None and crsOutput != None:
             addStudent()
             return
-        else:
+        elif output != None:
             messagebox.showerror(title='Error', message='ID Number already exists.')
+        elif crsOutput == None:
+            messagebox.showerror(title='Error', message='Course code does not exist. Please refer to courses table to view all available courses.')
+        
 
     # Add student after validation
     def addStudent():
@@ -247,6 +252,20 @@ def updateStudentWindow():
     yearEntry.insert(0, fetch[4])
     courseCodeEntry.insert(0, fetch[5])
 
+    def validate():
+        crsCode = courseCodeEntry.get()
+        conn = sqlite3.connect('students.db')
+        cur = conn.cursor()
+        cur.execute("SELECT Course_Code FROM Courses WHERE Course_Code='{}'".format(crsCode))
+        crsOutput = cur.fetchone()
+        conn.close()
+
+        if crsOutput == None:
+            messagebox.showerror(title='Error', message='Course code does not exist. Please refer to courses table to view all available courses.')
+        else:
+            updateStudent()
+            return
+        
     def updateStudent():
         # retrieving values from entries
         nameEnt = nameEntry.get()
@@ -274,8 +293,7 @@ def updateStudentWindow():
         else:
             updateWindow.destroy()
 
-
-    updateStudentConfirm = ttk.Button(updateWindow, text='Update Student', command=updateStudent)
+    updateStudentConfirm = ttk.Button(updateWindow, text='Update Student', command=validate)
     cancelButton = ttk.Button(updateWindow, text='Cancel', command=cancel)
     updateStudentConfirm.place(anchor=E, relx=0.95, rely=0.93, y=3, relwidth=0.25, relheight=0.06)
     cancelButton.place(anchor=E, relx=0.67, rely=0.93, y=3, relwidth=0.25, relheight=0.06)\
@@ -371,7 +389,6 @@ def viewCourses():
             cur = conn.cursor()
             cur.execute("SELECT Course_Code FROM Courses WHERE Course_Code='{}'".format(crsCode))
             output = cur.fetchone()
-            print(output)
             if output == None:
                 addcourse()
                 return
@@ -406,13 +423,22 @@ def viewCourses():
                                    command=addCourseWindow)
     addCourseButton.place(anchor=E, relx=0.95, rely=0.93, y=5, relwidth=0.25, relheight=0.06)
 
-    
+def filterID(searchString=''):
+    treeView.delete(*treeView.get_children())
+    conn = sqlite3.connect('students.db')
+    cur = conn.cursor()
+    cur.execute("SELECT Students.ID_Number, Students.Name, Students.Age, Students.Gender, Students.Year_Level, Courses.Course_Name FROM Students JOIN Courses ON Students.Course_Code=Courses.Course_Code WHERE Students.ID_Number LIKE '%{}%'".format(searchString))
+    fetch = cur.fetchall()
+    for data in fetch:
+        treeView.insert("", tk.END, values=data)
+    conn.close()
+    return
 
 def populateTreeView():
     treeView.delete(*treeView.get_children())
     conn = sqlite3.connect('students.db')
     cur = conn.cursor()
-    cur.execute("SELECT * FROM Students ORDER BY ID_Number")
+    cur.execute("SELECT Students.ID_Number, Students.Name, Students.Age, Students.Gender, Students.Year_Level, Courses.Course_Name FROM Students JOIN Courses ON Students.Course_Code=Courses.Course_Code")
     fetch = cur.fetchall()
     for data in fetch:
         treeView.insert("", tk.END, values=data)
@@ -426,16 +452,18 @@ def select(x):
     values = treeView.item(highlight, 'values')
     global idTracker
     idTracker = values[0]
-    print(idTracker)
 
-#val
+def clearFilter():
+    filterEntry.delete(0, END)
+    updateStudentButton.configure(state=DISABLED)
+    removeStudentButton.configure(state=DISABLED)
 
 # fill treeview on run
 populateTreeView()
 treeView.bind('<<TreeviewSelect>>', select)
 #treeView.bind('<<TreeviewSelect>>', treeViewSelect)
 
-# Action buttons
+# MAIN WINDOW ACTION WINDOW
 addStudentButton = ttk.Button(treeViewContainer, text='Add New Student',
                               command=addStudentWindow)
 updateStudentButton = ttk.Button(treeViewContainer, text='Update Student',
@@ -453,20 +481,24 @@ removeStudentButton.configure(state=DISABLED)
 # Filter treeview
 filterFrame = tk.LabelFrame(treeViewContainer, background='#DFDFDF')
 filterLabel = tk.Label(filterFrame, text='Filter:', background='#DFDFDF')
-filterEntry = tk.Entry(filterFrame)
+filterEntry = tk.Entry(filterFrame, textvariable=filterQuery)
 filterFrame.place(anchor=E, relx=0.97, rely=0.9, relwidth=0.3, relheight=0.1)
 # configuring grid layout in filterFrame
 filterFrame.rowconfigure(0, weight=1)
 filterFrame.columnconfigure(0, weight=1)
 filterFrame.columnconfigure(1, weight=5)
-filterLabel.grid(row=0, column=0, sticky=NSEW)
-filterEntry.grid(row=0, column=1, ipady=2, padx=(0,20), sticky=EW)
+filterLabel.grid(row=0, column=0, padx=(10,0), sticky=NSEW)
+filterEntry.grid(row=0, column=1, ipady=2, padx=5, sticky=EW)
+
+clearFilter = ttk.Button(filterFrame, text='Clear', command=clearFilter)
+clearFilter.grid(row=0, column=2, padx=(5,20), sticky=EW)
+
+filterQuery.trace("w", lambda name, index, mode, track=filterQuery: filterID(filterEntry.get()))
 
 # Add Course to DB
 addCourse = ttk.Button(root, text='Add New Course', command=viewCourses)
 addCourse.place(anchor=E, relx=0.95, rely=0.16, relwidth=0.13, relheight=0.05)
 
 treeViewContainer.place(anchor=N, relx=0.5, rely=0.2, relwidth=0.9, relheight=0.75)
-
 
 root.mainloop()
